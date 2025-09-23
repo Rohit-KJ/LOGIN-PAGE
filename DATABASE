@@ -1,0 +1,164 @@
+-- Alumni Management System Database Schema
+
+-- Users table for authentication
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'alumni' CHECK (role IN ('alumni', 'admin', 'student')),
+    is_active BOOLEAN DEFAULT true,
+    email_verified BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Alumni profiles
+CREATE TABLE alumni_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    alumni_id VARCHAR(50) UNIQUE NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    batch_year INTEGER NOT NULL,
+    graduation_date DATE,
+    current_job_title VARCHAR(200),
+    current_company VARCHAR(200),
+    industry VARCHAR(100),
+    location_city VARCHAR(100),
+    location_state VARCHAR(100),
+    location_country VARCHAR(100),
+    phone VARCHAR(20),
+    linkedin_url VARCHAR(500),
+    bio TEXT,
+    profile_image_url VARCHAR(500),
+    achievements TEXT[],
+    skills TEXT[],
+    is_mentor_available BOOLEAN DEFAULT false,
+    is_profile_public BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Events management
+CREATE TABLE events (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_name VARCHAR(200) NOT NULL,
+    description TEXT,
+    event_date DATE NOT NULL,
+    event_time TIME,
+    venue VARCHAR(300),
+    organizer VARCHAR(200),
+    organizer_contact VARCHAR(255),
+    event_type VARCHAR(50) CHECK (event_type IN ('networking', 'workshop', 'reunion', 'career_fair', 'webinar', 'social')),
+    max_attendees INTEGER,
+    registration_deadline DATE,
+    event_image_url VARCHAR(500),
+    is_active BOOLEAN DEFAULT true,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Event registrations
+CREATE TABLE event_registrations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    registration_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    attendance_status VARCHAR(20) DEFAULT 'registered' CHECK (attendance_status IN ('registered', 'attended', 'cancelled')),
+    UNIQUE(event_id, user_id)
+);
+
+-- Mentorship system
+CREATE TABLE mentorship_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    mentor_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    mentee_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    industry_focus VARCHAR(100),
+    role_focus VARCHAR(100),
+    request_message TEXT,
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'completed')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Donations and contributions
+CREATE TABLE donations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    donor_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    amount DECIMAL(10, 2) NOT NULL,
+    currency VARCHAR(3) DEFAULT 'USD',
+    project_name VARCHAR(200),
+    project_category VARCHAR(100) CHECK (project_category IN ('scholarship', 'infrastructure', 'research', 'sports', 'general')),
+    donation_date DATE DEFAULT CURRENT_DATE,
+    payment_status VARCHAR(20) DEFAULT 'pending' CHECK (payment_status IN ('pending', 'completed', 'failed', 'refunded')),
+    payment_reference VARCHAR(100),
+    is_anonymous BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Notifications system
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    notification_type VARCHAR(50) CHECK (notification_type IN ('event', 'mentorship', 'profile', 'donation', 'general')),
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Gamification: Badges
+CREATE TABLE badges (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    badge_name VARCHAR(100) NOT NULL,
+    badge_description TEXT,
+    badge_icon_url VARCHAR(500),
+    badge_criteria TEXT,
+    points_value INTEGER DEFAULT 0
+);
+
+-- User badges (earned badges)
+CREATE TABLE user_badges (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    badge_id UUID REFERENCES badges(id) ON DELETE CASCADE,
+    earned_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, badge_id)
+);
+
+-- Activity feed/news
+CREATE TABLE news_feed (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    author_id UUID REFERENCES users(id),
+    post_type VARCHAR(50) CHECK (post_type IN ('news', 'achievement', 'event_highlight', 'announcement')),
+    image_url VARCHAR(500),
+    is_published BOOLEAN DEFAULT false,
+    published_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for better performance
+CREATE INDEX idx_alumni_profiles_user_id ON alumni_profiles(user_id);
+CREATE INDEX idx_alumni_profiles_batch_year ON alumni_profiles(batch_year);
+CREATE INDEX idx_alumni_profiles_company ON alumni_profiles(current_company);
+CREATE INDEX idx_events_date ON events(event_date);
+CREATE INDEX idx_event_registrations_event_id ON event_registrations(event_id);
+CREATE INDEX idx_event_registrations_user_id ON event_registrations(user_id);
+CREATE INDEX idx_mentorship_mentor_id ON mentorship_requests(mentor_id);
+CREATE INDEX idx_mentorship_mentee_id ON mentorship_requests(mentee_id);
+CREATE INDEX idx_donations_donor_id ON donations(donor_id);
+CREATE INDEX idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX idx_user_badges_user_id ON user_badges(user_id);
+
+-- Insert sample badges
+INSERT INTO badges (badge_name, badge_description, points_value) VALUES
+('First Login', 'Welcome to the alumni network!', 10),
+('Profile Complete', 'Completed your profile information', 25),
+('Event Participant', 'Attended your first alumni event', 50),
+('Mentor', 'Became a mentor to help fellow alumni', 100),
+('Generous Donor', 'Made your first donation', 75),
+('Networking Pro', 'Attended 5+ events', 150),
+('Top Contributor', 'Donated $1000 or more', 200);
